@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // writeFile writes a new file to the cache storage.
 func writeFile(dir, key string, r io.Reader) (string, int64, error) {
 	name := shasum(key)
-	path := filepath(dir, name)
+	path := filepath.Join(dir, name)
 
 	f, err := os.Create(path)
 	defer f.Close()
@@ -25,8 +26,12 @@ func writeFile(dir, key string, r io.Reader) (string, int64, error) {
 	return path, n, nil
 }
 
-func filepath(dir, name string) string {
-	return dir + string(os.PathSeparator) + name
+func filesize(path string) (int64, error) {
+	s, err := os.Stat(path)
+	if err != nil {
+		return 0, &FileError{path, "", err}
+	}
+	return s.Size(), nil
 }
 
 func shasum(v string) string {

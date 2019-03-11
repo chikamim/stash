@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -64,6 +65,26 @@ func (c *Cache) PutReader(key string, r io.Reader) error {
 	defer c.l.Unlock()
 
 	path, n, err := writeFile(c.dir, key, r)
+	if err != nil {
+		return err
+	}
+	if err := c.validate(path, n); err != nil { // XXX(hjr265): We should validate before storing the file.
+		return err
+	}
+	c.addMeta(key, path, n)
+	return nil
+}
+
+func (c *Cache) PutFile(key, srcpath string) error {
+	c.l.Lock()
+	defer c.l.Unlock()
+
+	n, err := filesize(srcpath)
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(c.dir, shasum(key))
+	err = os.Rename(srcpath, path)
 	if err != nil {
 		return err
 	}

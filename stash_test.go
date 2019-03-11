@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -70,12 +71,36 @@ func TestCachePut(t *testing.T) {
 	}
 
 	for k, b := range blobs {
-		path := filepath(storageDir, shasum(k))
+		path := filepath.Join(storageDir, shasum(k))
 		v, err := ioutil.ReadFile(path)
 		catch(err)
 		if !bytes.Equal(b, v) {
 			t.Fatalf("Expected v == %q, got %q", b, v)
 		}
+	}
+}
+
+func TestCachePutFile(t *testing.T) {
+	clearStorage()
+
+	filename := "putfile"
+	k := "file"
+	b := []byte("abcdefgh")
+
+	s, err := New(storageDir, 2048000, 40)
+	catch(err)
+	f, err := os.Create(filename)
+	catch(err)
+	defer os.Remove(filename)
+	f.Write(b)
+	err = s.PutFile(k, filename)
+	catch(err)
+
+	path := filepath.Join(storageDir, shasum(k))
+	v, err := ioutil.ReadFile(path)
+	catch(err)
+	if !bytes.Equal(b, v) {
+		t.Fatalf("Expected v == %q, got %q", b, v)
 	}
 }
 
