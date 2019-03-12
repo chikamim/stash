@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/pierrec/lz4"
 )
 
 var storageDir string
@@ -53,7 +55,7 @@ func TestNew(t *testing.T) {
 	} {
 		clearStorage()
 
-		_, err := New(c.dir, c.sz, c.c)
+		_, err := New(c.dir, c.sz, c.c, false)
 		if err != c.err {
 			t.Fatalf("#%d: Expected err == %q, got %q", i+1, c.err, err)
 		}
@@ -63,7 +65,7 @@ func TestNew(t *testing.T) {
 func TestCachePut(t *testing.T) {
 	clearStorage()
 
-	s, err := New(storageDir, 2048000, 40)
+	s, err := New(storageDir, 2048000, 40, false)
 	catch(err)
 	for k, b := range blobs {
 		err := s.Put(k, b)
@@ -87,7 +89,7 @@ func TestCachePutFile(t *testing.T) {
 	k := "file"
 	b := []byte("abcdefgh")
 
-	s, err := New(storageDir, 2048000, 40)
+	s, err := New(storageDir, 2048000, 40, false)
 	catch(err)
 	f, err := os.Create(filename)
 	catch(err)
@@ -104,10 +106,57 @@ func TestCachePutFile(t *testing.T) {
 	}
 }
 
+func TestDeflateCachePut(t *testing.T) {
+	clearStorage()
+
+	key := "key"
+	value := []byte("value")
+
+	s, err := New(storageDir, 2048000, 40, true)
+	catch(err)
+	s.Put(key, value)
+
+	path := filepath.Join(storageDir, escape(key))
+	f, _ := os.Open(path)
+	defer f.Close()
+
+	r := lz4.NewReader(f)
+	got, _ := ioutil.ReadAll(r)
+
+	if !bytes.Equal(got, value) {
+		t.Fatalf("Expected v == %q, got %q", value, got)
+	}
+}
+
+func TestDeflateCacheGet(t *testing.T) {
+	clearStorage()
+
+	key := "key"
+	value := []byte("value")
+
+	s, err := New(storageDir, 2048000, 40, true)
+	catch(err)
+	s.Put(key, value)
+
+	path := filepath.Join(storageDir, escape(key))
+	f, _ := os.Create(path)
+	defer f.Close()
+
+	w := lz4.NewWriter(f)
+	w.Write(value)
+	w.Close()
+
+	r, _ := s.Get(key)
+	got, _ := ioutil.ReadAll(r)
+	if !bytes.Equal(got, value) {
+		t.Fatalf("Expected v == %q, got %q", value, got)
+	}
+}
+
 func TestReadCache(t *testing.T) {
 	clearStorage()
 
-	s, err := New(storageDir, 2048000, 40)
+	s, err := New(storageDir, 2048000, 40, false)
 	catch(err)
 	for k, b := range blobs {
 		path := filepath.Join(storageDir, escape(k))
@@ -131,7 +180,7 @@ func TestReadCache(t *testing.T) {
 func TestSizeEviction(t *testing.T) {
 	clearStorage()
 
-	s, err := New(storageDir, 10, 40)
+	s, err := New(storageDir, 10, 40, false)
 	catch(err)
 
 	err = s.Put("a", []byte("abcdefgh"))
@@ -160,7 +209,7 @@ func TestSizeEviction(t *testing.T) {
 func TestCapEviction(t *testing.T) {
 	clearStorage()
 
-	s, err := New(storageDir, 2048, 3)
+	s, err := New(storageDir, 2048, 3, false)
 	catch(err)
 
 	err = s.Put("a", []byte("abcdefg"))

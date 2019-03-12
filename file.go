@@ -8,21 +8,29 @@ import (
 )
 
 // writeFile writes a new file to the cache storage.
-func writeFile(dir, key string, r io.Reader) (string, int64, error) {
+func writeFile(dir, key string, r io.Reader, useDeflate bool) (path string, size int64, err error) {
 	name := escape(key)
-	path := filepath.Join(dir, name)
+	path = filepath.Join(dir, name)
 
 	f, err := os.Create(path)
-	defer f.Close()
 	if err != nil {
 		return "", 0, &FileError{dir, key, err}
 	}
-	n, err := io.Copy(f, r)
+	defer f.Close()
+
+	if useDeflate {
+		w := NewDeflateWriter(f)
+		size, err = io.Copy(w, r)
+		w.Close()
+	} else {
+		size, err = io.Copy(f, r)
+	}
+
 	if err != nil {
 		return "", 0, &FileError{dir, key, err}
 	}
 
-	return path, n, nil
+	return
 }
 
 func filesize(path string) (int64, error) {

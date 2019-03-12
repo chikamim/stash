@@ -28,29 +28,32 @@ type Cache struct {
 	list *list.List               // List of items in cache
 	m    map[string]*list.Element // Map of items in list
 
+	useDeflate bool // Use deflate or not
+
 	l sync.RWMutex
 }
 
 // New creates a Cache backed by dir on disk. The cache allows at most c files of total size sz.
-func New(dir string, sz, c int64) (*Cache, error) {
+func New(dir string, size, cap int64, useDeflate bool) (*Cache, error) {
 	if !validDir(dir) {
 		return nil, ErrBadDir
 	}
-	if sz <= 0 {
+	if size <= 0 {
 		return nil, ErrBadSize
 	}
-	if c <= 0 {
+	if cap <= 0 {
 		return nil, ErrBadCap
 	}
 
 	dir = strings.TrimRight(dir, string(os.PathSeparator)) // Clean path to dir
 
 	return &Cache{
-		dir:  dir,
-		size: sz,
-		cap:  c,
-		list: list.New(),
-		m:    make(map[string]*list.Element),
+		dir:        dir,
+		size:       size,
+		cap:        cap,
+		list:       list.New(),
+		m:          make(map[string]*list.Element),
+		useDeflate: useDeflate,
 	}, nil
 }
 
@@ -87,7 +90,7 @@ func (c *Cache) PutReader(key string, r io.Reader) error {
 	c.l.Lock()
 	defer c.l.Unlock()
 
-	path, n, err := writeFile(c.dir, key, r)
+	path, n, err := writeFile(c.dir, key, r, c.useDeflate)
 	if err != nil {
 		return err
 	}
@@ -129,7 +132,11 @@ func (c *Cache) Get(key string) (io.ReadCloser, error) {
 		if f, err := os.Open(path); err != nil {
 			return nil, err
 		} else {
-			return f, nil
+			if c.useDeflate {
+				return NewDeflateReader(f), nil
+			} else {
+				return f, nil
+			}
 		}
 	} else {
 		return nil, ErrNotFound
