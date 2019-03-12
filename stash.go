@@ -54,6 +54,29 @@ func New(dir string, sz, c int64) (*Cache, error) {
 	}, nil
 }
 
+func (c *Cache) ReadCache() error {
+	c.l.Lock()
+	defer c.l.Unlock()
+
+	f, err := os.Open(c.dir)
+	if err != nil {
+		return err
+	}
+	fileInfo, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	for _, file := range fileInfo {
+		key := file.Name()
+		path := filepath.Join(c.dir, key)
+		c.addMeta(key, path, file.Size())
+	}
+
+	return nil
+}
+
 // Put adds a byte slice as a blob to the cache against the given key.
 func (c *Cache) Put(key string, val []byte) error {
 	return c.PutReader(key, bytes.NewReader(val))
@@ -83,7 +106,7 @@ func (c *Cache) PutFile(key, srcpath string) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(c.dir, shasum(key))
+	path := filepath.Join(c.dir, escape(key))
 	err = os.Rename(srcpath, path)
 	if err != nil {
 		return err

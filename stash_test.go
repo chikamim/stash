@@ -71,7 +71,7 @@ func TestCachePut(t *testing.T) {
 	}
 
 	for k, b := range blobs {
-		path := filepath.Join(storageDir, shasum(k))
+		path := filepath.Join(storageDir, escape(k))
 		v, err := ioutil.ReadFile(path)
 		catch(err)
 		if !bytes.Equal(b, v) {
@@ -96,11 +96,35 @@ func TestCachePutFile(t *testing.T) {
 	err = s.PutFile(k, filename)
 	catch(err)
 
-	path := filepath.Join(storageDir, shasum(k))
+	path := filepath.Join(storageDir, escape(k))
 	v, err := ioutil.ReadFile(path)
 	catch(err)
 	if !bytes.Equal(b, v) {
 		t.Fatalf("Expected v == %q, got %q", b, v)
+	}
+}
+
+func TestReadCache(t *testing.T) {
+	clearStorage()
+
+	s, err := New(storageDir, 2048000, 40)
+	catch(err)
+	for k, b := range blobs {
+		path := filepath.Join(storageDir, escape(k))
+		err := ioutil.WriteFile(path, b, 0666)
+		catch(err)
+	}
+
+	s.ReadCache()
+
+	for k, b := range blobs {
+		r, err := s.Get(escape(k))
+		catch(err)
+		v, err := ioutil.ReadAll(r)
+		catch(err)
+		if !bytes.Equal(b, v) {
+			t.Fatalf("Expected v == %q, got %q", b, v)
+		}
 	}
 }
 

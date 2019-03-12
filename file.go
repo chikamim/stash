@@ -1,16 +1,15 @@
 package stash
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 )
 
 // writeFile writes a new file to the cache storage.
 func writeFile(dir, key string, r io.Reader) (string, int64, error) {
-	name := shasum(key)
+	name := escape(key)
 	path := filepath.Join(dir, name)
 
 	f, err := os.Create(path)
@@ -29,11 +28,11 @@ func writeFile(dir, key string, r io.Reader) (string, int64, error) {
 func filesize(path string) (int64, error) {
 	s, err := os.Stat(path)
 	if err != nil {
-		return 0, &FileError{path, "", err}
+		return 0, &FileError{path, escape(filepath.Base(path)), err}
 	}
 	return s.Size(), nil
 }
 
-func shasum(v string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(v)))
+func escape(v string) string {
+	return url.QueryEscape(v)
 }
