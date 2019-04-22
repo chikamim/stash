@@ -28,12 +28,12 @@ type Cache struct {
 	list *list.List               // List of items in cache
 	m    map[string]*list.Element // Map of items in list
 
-	useDeflate bool // Use deflate or not
+	useDeflate bool // Use lz4 deflate or not
 
 	l sync.RWMutex
 }
 
-// New creates a Cache backed by dir on disk. The cache allows at most c files of total size sz.
+// New creates a Cache backed by dir on disk. The cache allows at most "cap" files of total size "size". If "useDeflate" is true, blobs will be compressed by lz4 for reduce disk usage.
 func New(dir string, size, cap int64, useDeflate bool) (*Cache, error) {
 	if !validDir(dir) {
 		return nil, ErrBadDir
@@ -57,7 +57,7 @@ func New(dir string, size, cap int64, useDeflate bool) (*Cache, error) {
 	}, nil
 }
 
-func (c *Cache) ReadCache() error {
+func (c *Cache) Warmup() error {
 	c.l.Lock()
 	defer c.l.Unlock()
 
@@ -101,6 +101,7 @@ func (c *Cache) PutReader(key string, r io.Reader) error {
 	return nil
 }
 
+// PutFile adds the contents of a file path as a blog to the cache. The source file will be moved or deleted.
 func (c *Cache) PutFile(key, srcpath string) error {
 	c.l.Lock()
 	defer c.l.Unlock()
@@ -110,9 +111,31 @@ func (c *Cache) PutFile(key, srcpath string) error {
 		return err
 	}
 	path := filepath.Join(c.dir, escape(key))
-	err = os.Rename(srcpath, path)
-	if err != nil {
-		return err
+	if c.useDeflate {
+		w, err := os.Create(path)
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		r, err := os.Open(srcpath)
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+
+		dw := NewDeflateWriter(w)
+		defer dw.Close()
+		n, err = io.Copy(dw, r)
+		if err != nil {
+			return err
+		}
+		os.Remove(srcpath)
+	} else {
+		err = os.Rename(srcpath, path)
+		if err != nil {
+			return err
+		}
 	}
 	if err := c.validate(path, n); err != nil { // XXX(hjr265): We should validate before storing the file.
 		return err

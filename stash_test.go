@@ -106,7 +106,11 @@ func TestCachePutFile(t *testing.T) {
 	}
 }
 
-func TestDeflateCachePut(t *testing.T) {
+func TestCachePutFileDeflate(t *testing.T) {
+	//TODO:
+}
+
+func TestCachePutDeflate(t *testing.T) {
 	clearStorage()
 
 	key := "key"
@@ -128,7 +132,7 @@ func TestDeflateCachePut(t *testing.T) {
 	}
 }
 
-func TestDeflateCacheGet(t *testing.T) {
+func TestCacheGetDeflate(t *testing.T) {
 	clearStorage()
 
 	key := "key"
@@ -153,7 +157,7 @@ func TestDeflateCacheGet(t *testing.T) {
 	}
 }
 
-func TestReadCache(t *testing.T) {
+func TestWarmup(t *testing.T) {
 	clearStorage()
 
 	s, err := New(storageDir, 2048000, 40, false)
@@ -164,7 +168,7 @@ func TestReadCache(t *testing.T) {
 		catch(err)
 	}
 
-	s.ReadCache()
+	s.Warmup()
 
 	for k, b := range blobs {
 		r, err := s.Get(escape(k))
