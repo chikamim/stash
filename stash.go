@@ -90,14 +90,14 @@ func (c *Cache) PutReader(key string, r io.Reader) error {
 	c.l.Lock()
 	defer c.l.Unlock()
 
-	path, n, err := writeFile(c.dir, key, r, c.useDeflate)
+	path, n, err := writeFile(c.dir, escape(key), r, c.useDeflate)
 	if err != nil {
 		return err
 	}
 	if err := c.validate(path, n); err != nil { // XXX(hjr265): We should validate before storing the file.
 		return err
 	}
-	c.addMeta(key, path, n)
+	c.addMeta(escape(key), path, n)
 	return nil
 }
 
@@ -140,7 +140,7 @@ func (c *Cache) PutFile(key, srcpath string) error {
 	if err := c.validate(path, n); err != nil { // XXX(hjr265): We should validate before storing the file.
 		return err
 	}
-	c.addMeta(key, path, n)
+	c.addMeta(escape(key), path, n)
 	return nil
 }
 
@@ -149,7 +149,7 @@ func (c *Cache) Get(key string) (io.ReadCloser, error) {
 	c.l.RLock()
 	defer c.l.RUnlock()
 
-	if item, ok := c.m[key]; ok {
+	if item, ok := c.m[escape(key)]; ok {
 		c.list.MoveToFront(item)
 		path := item.Value.(*Meta).Path
 		if f, err := os.Open(path); err != nil {

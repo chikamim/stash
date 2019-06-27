@@ -9,8 +9,7 @@ import (
 
 // writeFile writes a new file to the cache storage.
 func writeFile(dir, key string, r io.Reader, useDeflate bool) (path string, size int64, err error) {
-	name := escape(key)
-	path = filepath.Join(dir, name)
+	path = filepath.Join(dir, key)
 
 	f, err := os.Create(path)
 	if err != nil {
@@ -36,7 +35,7 @@ func writeFile(dir, key string, r io.Reader, useDeflate bool) (path string, size
 func filesize(path string) (int64, error) {
 	s, err := os.Stat(path)
 	if err != nil {
-		return 0, &FileError{path, escape(filepath.Base(path)), err}
+		return 0, &FileError{path, filepath.Base(path), err}
 	}
 	return s.Size(), nil
 }

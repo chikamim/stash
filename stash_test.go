@@ -86,7 +86,7 @@ func TestCachePutFile(t *testing.T) {
 	clearStorage()
 
 	filename := "putfile"
-	k := "file"
+	k := "fi/le"
 	b := []byte("abcdefgh")
 
 	s, err := New(storageDir, 2048000, 40, false)
@@ -98,9 +98,11 @@ func TestCachePutFile(t *testing.T) {
 	err = s.PutFile(k, filename)
 	catch(err)
 
-	path := filepath.Join(storageDir, escape(k))
-	v, err := ioutil.ReadFile(path)
+	//path := filepath.Join(storageDir, escape(k))
+	//v, err := ioutil.ReadFile(path)
+	r, err := s.Get(k)
 	catch(err)
+	v, _ := ioutil.ReadAll(r)
 	if !bytes.Equal(b, v) {
 		t.Fatalf("Expected v == %q, got %q", b, v)
 	}
@@ -120,7 +122,7 @@ func TestCachePutDeflate(t *testing.T) {
 	catch(err)
 	s.Put(key, value)
 
-	path := filepath.Join(storageDir, escape(key))
+	path := filepath.Join(storageDir, key)
 	f, _ := os.Open(path)
 	defer f.Close()
 
@@ -142,7 +144,7 @@ func TestCacheGetDeflate(t *testing.T) {
 	catch(err)
 	s.Put(key, value)
 
-	path := filepath.Join(storageDir, escape(key))
+	path := filepath.Join(storageDir, key)
 	f, _ := os.Create(path)
 	defer f.Close()
 
@@ -171,7 +173,7 @@ func TestWarmup(t *testing.T) {
 	s.Warmup()
 
 	for k, b := range blobs {
-		r, err := s.Get(escape(k))
+		r, err := s.Get(k)
 		catch(err)
 		v, err := ioutil.ReadAll(r)
 		catch(err)
